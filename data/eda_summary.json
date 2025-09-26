@@ -1,0 +1,10 @@
+{
+  "source": "dummy",
+  "rows": 5000,
+  "unique_customers": 500,
+  "period_start": "2023-12-04",
+  "period_end": "2025-01-23",
+  "orders_per_month_median": 402,
+  "amount_mean": 777.16,
+  "amount_median": 740.63
+}

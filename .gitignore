@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.so
+*.egg
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Jupyter
+notebooks/churn_analysis_modules.ipynb
+notebooks/sentiment_analysis.ipynb
+.ipynb_checkpoints/
+.notebooks/
+
+# Data & models (large, generated files)
+data/*.csv
+data/*.xlsx
+data/*.db
+data/*.parquet
+models/*.joblib
+
+# Logs
+*.log
+logs/
+
+# Docs (exclude Word/plan files)
+docs/
+*.docx
+
+# Secrets & config
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editors & IDE
+.vscode/
+*.code-workspace
+
+# Temporary / backup files
+*.bak
+*.tmp
+~$*
