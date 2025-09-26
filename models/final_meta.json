@@ -9,12 +9,16 @@
     "share_Q4",
     "log_monetary_lifetime"
   ],
-  "created_at_utc": "2025-09-25T18:15:33.288884+00:00",
-  "reference_date": "2025-01-28T00:00:00",
+  "created_at_utc": "2025-09-26T12:24:38.641216+00:00",
+  "churn_days": 90,
+  "reference_date": "2025-01-30T00:00:00",
   "best_model_name": "LogReg (baseline)",
+  "export_model_class": "Pipeline",
+  "calibration": "none",
   "random_state": 42,
   "sklearn_version": "1.7.2",
   "xgboost_version": "3.0.5",
   "pandas_version": "2.3.2",
-  "numpy_version": "2.2.6"
+  "numpy_version": "2.2.6",
+  "model_version": "v1"
 }
