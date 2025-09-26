@@ -19,11 +19,10 @@ notebooks/sentiment_analysis.ipynb
 .notebooks/
 
 # Data & models (large, generated files)
-data/*.csv
-data/*.xlsx
-data/*.db
-data/*.parquet
+data/
+*.db
 models/*.joblib
+
 
 # Logs
 *.log
