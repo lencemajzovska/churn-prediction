@@ -18,17 +18,17 @@ notebooks/*.ipynb
 .ipynb_checkpoints/
 .notebooks/
 
-# Data & models (large, generated files)
+# Data & models
 data/
 *.db
-models/*.joblib
-
+models/
+images/
 
 # Logs
 *.log
 logs/
 
-# Docs (exclude Word/plan files)
+# Docs
 docs/
 *.docx
 

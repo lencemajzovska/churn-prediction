@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 
 def best_f1_threshold(y_true, proba, grid=None) -> Tuple[float, float]:
     """
-    Beräkna vilket tröskelvärde (0–1) som ger högst F1-score.
+    Beräkna vilket tröskelvärde (0-1) som ger högst F1-score.
     Returnerar både tröskeln och motsvarande F1.
     """
     if grid is None:
