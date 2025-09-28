@@ -13,8 +13,8 @@ env/
 venv/
 
 # Jupyter
-notebooks/churn_analysis_modules.ipynb
-notebooks/sentiment_analysis.ipynb
+notebooks/*.ipynb
+!notebooks/churn_prediction.ipynb
 .ipynb_checkpoints/
 .notebooks/
 

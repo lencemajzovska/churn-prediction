@@ -1,5 +1,6 @@
 import json
 import logging
+import numpy as np
 import sqlite3
 from pathlib import Path
 from typing import Union
@@ -52,8 +53,8 @@ def train_full_and_export(
     random_state : int, default=42
         Slumpfrö för reproducerbarhet.
 
-    Returns
-    -------
+    Returnerar
+    ----------
     feats_export : pd.DataFrame
         DataFrame med risk_scores, risk_band och metadatafält.
     """
@@ -99,7 +100,7 @@ def train_full_and_export(
     feats_export["risk_score"] = export_model.predict_proba(X)[:, 1]
 
     # Dela in kunder i fyra risknivåer (percentiler)
-    labels = ["Low", "Med", "High", "Critical"]
+    labels = ["Low", "Medium", "High", "Critical"]
     pct = feats_export["risk_score"].rank(pct=True, method="first")
     feats_export["risk_band"] = pd.cut(
         pct, bins=[0, 0.25, 0.50, 0.75, 1.0],
@@ -113,16 +114,81 @@ def train_full_and_export(
     feats_export["scored_at"] = pd.Timestamp.utcnow().isoformat()
     feats_export["reference_date"] = reference_date.isoformat()
 
+    # Churn predictions
+    rename_map ={
+        "customer_id": "CustomerID",
+        "first_purchase": "FirstPurchaseDate",
+        "last_purchase": "LastPurchaseDate",
+        "days_since_first_purchase": "DaysSinceFirstPurchase",
+        "recency": "DaysSinceLastPurchase",
+        "orders_lifetime": "OrdersLifetime",
+        "monetary_lifetime": "LifetimeMonetaryValue",
+        "frequency_90d": "OrdersLast90Days",
+        "monetary_90d": "MonetaryValueLast90Days",
+        "avg_order_value_lifetime": "AvgOrderValueLifetime",
+        "avg_order_value_90d": "AvgOrderValue90Days",
+        "is_weekly_buyer": "WeeklyBuyer",
+        "churned": "Churned",
+        "risk_score": "RiskScore",
+        "risk_band": "RiskBand",
+        "model_name": "ModelName",
+        "model_version": "ModelVersion",
+        "scored_at": "ScoredAt",
+        "reference_date": "ReferenceDate",
+    }
+
+    feats_export = feats_export.rename(columns=rename_map)
+
+    # RiskBand summary
+    summary = (
+        feats_export.groupby("RiskBand", observed=False)
+        .agg(
+            Customers=("CustomerID", "count"),
+            AvgRisk=("RiskScore", "mean"),
+            MaxRisk=("RiskScore", "max"),
+            MinRisk=("RiskScore", "min"),
+        )
+        .reset_index()
+    )
+    summary["AvgRisk"] = summary["AvgRisk"].round(4)
+
+    # Dummy orders
+    rng = np.random.default_rng(seed=random_state)
+
+    dummy_orders = []
+    for cid in feats_export["CustomerID"]:
+        n_orders = rng.integers(1, 6)  # 1–5 orders
+        for i in range(n_orders):
+            dummy_orders.append({
+                "OrderID": f"O{cid}_{i+1}",
+                "CustomerID": cid,
+                "OrderDate": (
+                    pd.Timestamp.utcnow() - pd.Timedelta(days=int(rng.integers(1, 90)))
+                ).strftime("%Y-%m-%d"),
+                "OrderValue": round(float(rng.uniform(10, 200)), 2),
+            })
+
+    dummy_orders = pd.DataFrame(dummy_orders)
+
     # Exportera till CSV
-    feats_export.to_csv(paths.export_csv, index=False)
+    feats_export.to_csv(paths.data_dir / "churn_predictions.csv", index=False)
+    summary.to_csv(paths.data_dir / "riskband_summary.csv", index=False)
+    dummy_orders.to_csv(paths.data_dir / "dummy_orders.csv", index=False)
+
 
     # Exportera till SQLite
     with sqlite3.connect(paths.sqlite_db) as con:
         feats_export.to_sql("churn_scores", con, if_exists="replace", index=False)
+        summary.to_sql("riskband_summary", con, if_exists="replace", index=False)
+        dummy_orders.to_sql("dummy_orders", con, if_exists="replace", index=False)
+
         con.executescript("""
-        CREATE INDEX IF NOT EXISTS ix_churn_scores_customer_id ON churn_scores(customer_id);
-        CREATE INDEX IF NOT EXISTS ix_churn_scores_risk_score   ON churn_scores(risk_score);
-        CREATE INDEX IF NOT EXISTS ix_churn_scores_model_name   ON churn_scores(model_name);
+        CREATE INDEX IF NOT EXISTS ix_churn_scores_CustomerID ON churn_scores(CustomerID);
+        CREATE INDEX IF NOT EXISTS ix_churn_scores_RiskScore   ON churn_scores(RiskScore);
+        CREATE INDEX IF NOT EXISTS ix_churn_scores_ModelName   ON churn_scores(ModelName);
+
+        CREATE INDEX IF NOT EXISTS ix_riskband_summary_RiskBand ON riskband_summary(RiskBand);
+        CREATE INDEX IF NOT EXISTS ix_dummy_orders_CustomerID   ON dummy_orders(CustomerID);
         """)
 
     # Exportera tränad modell
@@ -142,15 +208,40 @@ def train_full_and_export(
         "numpy_version": __import__("numpy").__version__,
     }
 
-    # Standardfil som testerna förväntar sig
+    # Metadatafiler
     meta_path = paths.model_dir / "final_meta.json"
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
-    # Extra fil med modellnamn (för spårbarhet)
     meta_path_named = paths.model_dir / f"final_meta_{export_name}.json"
     with open(meta_path_named, "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
     log.info("Modell tränad och exporterad som %s", export_name)
-    return feats_export
+
+    # Gör en kopia för retur till testerna
+    feats_return = feats_export.rename(
+        columns={
+            "CustomerID": "customer_id",
+            "FirstPurchaseDate": "first_purchase",
+            "LastPurchaseDate": "last_purchase",
+            "DaysSinceFirstPurchase": "days_since_first_purchase",
+            "DaysSinceLastPurchase": "recency",
+            "OrdersLifetime": "orders_lifetime",
+            "LifetimeMonetaryValue": "monetary_lifetime",
+            "OrdersLast90Days": "frequency_90d",
+            "MonetaryValueLast90Days": "monetary_90d",
+            "AvgOrderValueLifetime": "avg_order_value_lifetime",
+            "AvgOrderValue90Days": "avg_order_value_90d",
+            "WeeklyBuyer": "is_weekly_buyer",
+            "Churned": "churned",
+            "RiskScore": "risk_score",
+            "RiskBand": "risk_band",
+            "ModelName": "model_name",
+            "ModelVersion": "model_version",
+            "ScoredAt": "scored_at",
+            "ReferenceDate": "reference_date",
+        }
+    )
+
+    return feats_return

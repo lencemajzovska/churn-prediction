@@ -73,7 +73,7 @@ def test_train_full_and_export_creates_files(sample_data):
     assert "risk_score" in feats_export.columns, "risk_score saknas i export"
     assert "risk_band" in feats_export.columns, "risk_band saknas i export"
     assert set(feats_export["risk_band"].unique()).issubset(
-        {"Low", "Med", "High", "Critical"}
+        {"Low", "Medium", "High", "Critical"}
     ), "risk_band innehåller ogiltiga värden"
 
     # Kontrollera filer

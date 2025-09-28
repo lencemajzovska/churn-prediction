@@ -260,12 +260,16 @@ def build_features(df: pd.DataFrame, churn_days: int) -> tuple[pd.DataFrame, pd.
     """
     reference_date = df["order_date"].max() + pd.Timedelta(days=1)
 
-    rfm_base = (df.groupby("customer_id")
-                  .agg(first_purchase=("order_date", "min"),
-                       last_purchase=("order_date", "max"),
-                       orders_lifetime=("order_date", "count"),
-                       monetary_lifetime=("amount", "sum"))
-                  .reset_index())
+    rfm_base = (
+        df.groupby("customer_id")
+        .agg(
+            first_purchase=("order_date", "min"),
+            last_purchase=("order_date", "max"),
+            orders_lifetime=("order_date", "count"),
+            monetary_lifetime=("amount", "sum")
+    )
+    .reset_index()
+    )
 
     look_90 = reference_date - pd.Timedelta(days=90)
     df_90 = df[df["order_date"] >= look_90]
@@ -319,6 +323,6 @@ def build_features(df: pd.DataFrame, churn_days: int) -> tuple[pd.DataFrame, pd.
     assert not X.isna().any().any(), "NaN i X"
     assert not y.isna().any(), "NaN i y"
 
-    log.info("Features byggda: X=%s features, y=%s labels, kunder=%s", X.shape[1], len(y), len(ids))
+    log.info("Bygger features: X=%s features, y=%s labels, kunder=%s", X.shape[1], len(y), len(ids))
     feats_model = feats.copy()
     return X, y, ids, feats_model, reference_date, feature_names
