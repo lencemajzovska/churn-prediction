@@ -176,9 +176,9 @@ Efter kalibrering med **isotonic regression** ökar `precision @ 10 %` tydligt, 
 
 <br>
 
-<!-- <p align="center"> -->
-<img src="images/calibration_curves.png" alt="Kalibreringskurva" width="25%"/>
-<!-- </p> -->
+<p align="center">
+<img src="images/calibration_curves.png" alt="Kalibreringskurva" width="45%"/>
+</p>
 
 Grafen visar att den kalibrerade modellen generellt följer den perfekta diagonalen bättre än den okalibrerade. Vid lägre och medelhöga sannolikheter förbättras överensstämmelsen tydligt, vilket innebär att modellen skattar churnrisk mer realistiskt. Vid de högsta sannolikheterna (över ~0.8) syns dock en viss överkalibrering – modellen tenderar att överskatta risken något.
 
@@ -258,14 +258,14 @@ Churn-fördelning bland kunder
 Nedan visas Power BI rapport byggd på exporterad churn-data:
 
 <h3 style="margin-left: 58px;">Översikt</h3>
-<!-- <p align="center"> -->
-  <img src="images/powerbi_overview.png" alt="Power BI – Översikt" width="50%">
-<!-- </p> -->
+<p align="center">
+  <img src="images/powerbi_overview.png" alt="Power BI – Översikt" width="90%">
+</p>
 
 <h3 style="margin-left: 58px;">RFM-analys och riskmönster</h3>
-<!-- <p align="center"> -->
-  <img src="images/powerbi_insights.png" alt="Power BI – RFM-insikter" width="50%">
-<!-- </p> -->
+<p align="center">
+  <img src="images/powerbi_insights.png" alt="Power BI – RFM-insikter" width="90%">
+</p>
 
 ---
 
@@ -317,25 +317,28 @@ Projektet demonstrerar hur en komplett pipeline kan byggas, där maskininlärnin
 ```text
 customer-churn-analytics/
 │
+├── images/
+│
 ├── notebooks/
 │   └── churn_prediction.ipynb
 │
 ├── src/
-│   ├── log_config.py
+│   ├── __init__.py
 │   ├── data_prep.py
-│   ├── model.py
 │   ├── export.py
+│   ├── log_config.py
+│   ├── model.py
 │   └── pipeline.py
 │
 ├── tests/
 │   ├── test_data_prep.py
-│   ├── test_model.py
-│   └── test_export.py
+│   ├── test_export.py
+│   └── test_model.py
 │
-├── images/
-│
-├── requirements.txt
-└── README.md
+├── .gitignore
+├── README.md
+├── pytest.ini
+└── requirements.txt
 ```
 
 Repo innehåller notebook för analys, modulär pipeline i src/, enhetstester i tests/, samt figurer för visualiseringar i README.
@@ -391,9 +394,12 @@ Projektet är uppdelat i funktionella moduler:
 INFO    Pipeline started
 INFO    Data loaded (541,909 rows, 4,372 customers)
 INFO    Cleaned dataset ready (406,829 rows, 4,372 customers)
-INFO    Features generated (13 total)
+INFO    Features generated (3,376 customers, 13 features)
 INFO    Train/Test split completed
-INFO    Model selected: LogReg (baseline) (AUC=0.743)
+INFO    LogReg (baseline) | CV AUC = 0.750 ± 0.007
+INFO    RandomForest | CV AUC = 0.739 ± 0.009
+INFO    XGBoost | CV AUC = 0.728 ± 0.012
+INFO    Model selected: LogReg (baseline) 
 INFO    Calibration applied: isotonic
 INFO    Export completed
 INFO    Pipeline finished successfully
