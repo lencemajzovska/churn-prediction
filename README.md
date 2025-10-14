@@ -117,7 +117,7 @@ Detta är ofta önskvärt i churn-analys, där det är viktigare att upptäcka r
 <br>
 
 <!-- <p align="center"> -->
-<img src="images/confusion_matrix.png" alt="Confusion Matrix" width="50%"/>
+<img src="images/confusion_matrix.png" alt="Confusion Matrix" width="70%"/>
 <!-- </p> -->
 
 Figuren visar hur modellens klassificering förändras när tröskelvärdet sänks från **0.50** till **0.34** (bästa F1-tröskel). <br>
@@ -134,7 +134,7 @@ Vid tröskelvärde **0.50** missas 90 churnade kunder, medan den lägre tröskel
 <br>
 
 <!-- <p align="center"> -->
-<img src="images/roc_pr.png" alt="ROC och PR" width="50%"/>
+<img src="images/roc_pr.png" alt="ROC och PR" width="70%"/>
 <!-- </p> -->
 
 Figuren visar att modellen uppnår **AUC = 0.74** och **Average Precision (AP) = 0.64**, vilket betyder att den skiljer churnade kunder från aktiva på ett tillförlitligt sätt. <br>
@@ -149,7 +149,7 @@ Modellen presterar stabilt även när fler churnade kunder identifieras, vilket 
 <br>
 
 <!-- <p align="center"> -->
-<img src="images/feature_importance.png" alt="Permutation Importance" width="50%"/>
+<img src="images/feature_importance.png" alt="Permutation Importance" width="70%"/>
 <!-- </p> -->
 
 Figuren visar att **recency** (antal dagar sedan senaste köp) är den mest betydelsefulla faktorn, följt av **days_since_first_purchase** och **frequency_lifetime**.
