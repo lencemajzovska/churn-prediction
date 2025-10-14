@@ -181,7 +181,7 @@ Efter kalibrering med **isotonic regression** ökar `precision @ 10 %` tydligt, 
 <img src="images/calibration_curves.png" alt="Kalibreringskurva" width="45%"/>
 </p>
 
-Grafen visar att den kalibrerade modellen generellt följer den perfekta diagonalen bättre än den okalibrerade. Vid lägre och medelhöga sannolikheter förbättras överensstämmelsen tydligt, vilket innebär att modellen skattar churnrisk mer realistiskt. Vid de högsta sannolikheterna (över ~0.8) syns dock en viss överkalibrering – modellen tenderar att överskatta risken något.
+Grafen visar att den kalibrerade modellen generellt följer den perfekta diagonalen bättre än den okalibrerade. Vid lägre och medelhöga sannolikheter förbättras överensstämmelsen tydligt, vilket innebär att modellen skattar churnrisk mer realistiskt. Vid de högsta sannolikheterna (över ~0.8) syns dock en viss överkalibrering, modellen tenderar att överskatta risken något.
 
 Trots det ger isotonic-kalibreringen en stabilare och mer tillförlitlig sannolikhetsfördelning som helhet, vilket gör den mer användbar för riskbedömning. Sammanfattningsvis förbättrar kalibreringen modellens användbarhet som beslutsstöd, där sannolikheter kan tolkas som faktiska risknivåer snarare än relativa poäng.
 
