@@ -257,12 +257,12 @@ Churn-fördelning bland kunder
 
 Nedan visas Power BI rapport byggd på exporterad churn-data:
 
-<h3 style="margin-left: 58px;">Översikt</h3>
+<h3 style="margin-left: 58 px;">Översikt</h3>
 <p align="center">
   <img src="images/powerbi_overview.png" alt="Power BI – Översikt" width="90%">
 </p>
 
-<h3 style="margin-left: 58px;">RFM-analys och riskmönster</h3>
+<h3 style="margin-left: 58 px;">RFM-analys och riskmönster</h3>
 <p align="center">
   <img src="images/powerbi_insights.png" alt="Power BI – RFM-insikter" width="90%">
 </p>
