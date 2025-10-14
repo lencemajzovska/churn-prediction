@@ -134,7 +134,7 @@ Vid tröskelvärde **0.50** missas 90 churnade kunder, medan den lägre tröskel
 <br>
 
 <p align="center">
-<img src="images/roc_pr.png" alt="ROC och PR" width="70%"/>
+<img src="images/roc_pr.png" alt="ROC och PR" width="90%"/>
 </p>
 
 Figuren visar att modellen uppnår **AUC = 0.74** och **Average Precision (AP) = 0.64**, vilket betyder att den skiljer churnade kunder från aktiva på ett tillförlitligt sätt. <br>
@@ -148,9 +148,9 @@ Modellen presterar stabilt även när fler churnade kunder identifieras, vilket 
 
 <br>
 
-<!-- <p align="center"> -->
-<img src="images/feature_importance.png" alt="Permutation Importance" width="70%"/>
-<!-- </p> -->
+<p align="center">
+<img src="images/feature_importance.png" alt="Permutation Importance" width="90%"/>
+</p>
 
 Figuren visar att **recency** (antal dagar sedan senaste köp) är den mest betydelsefulla faktorn, följt av **days_since_first_purchase** och **frequency_lifetime**.
 Monetära mått som **log_monetary_lifetime** och indikatorn **is_weekly_buyer** har viss påverkan, medan säsongsvariabler som **share_Q1–Q4** och **avg_order_value** har mindre betydelse.
@@ -177,7 +177,7 @@ Efter kalibrering med **isotonic regression** ökar `precision @ 10 %` tydligt, 
 <br>
 
 <p align="center">
-<img src="images/calibration_curves.png" alt="Kalibreringskurva" width="35%"/>
+<img src="images/calibration_curves.png" alt="Kalibreringskurva" width="45%"/>
 </p>
 
 Grafen visar att den kalibrerade modellen generellt följer den perfekta diagonalen bättre än den okalibrerade. Vid lägre och medelhöga sannolikheter förbättras överensstämmelsen tydligt, vilket innebär att modellen skattar churnrisk mer realistiskt. Vid de högsta sannolikheterna (över ~0.8) syns dock en viss överkalibrering – modellen tenderar att överskatta risken något.
@@ -258,10 +258,14 @@ Churn-fördelning bland kunder
 Nedan visas Power BI rapport byggd på exporterad churn-data:
 
 <h3 style="margin-left: 58px;">Översikt</h3>
-  <img src="images/powerbi_overview.png" alt="Power BI – Översikt" width="70%">
+<p align="center">
+  <img src="images/powerbi_overview.png" alt="Power BI – Översikt" width="50%">
+</p>
 
-
-  <img src="images/powerbi_insights.png" alt="Power BI – RFM-insikter" width="70%">
+<h3 style="margin-left: 58px;">RFM-analys och riskmönster</h3>
+<p align="center">
+  <img src="images/powerbi_insights.png" alt="Power BI – RFM-insikter" width="50%">
+</p>
 
 ---
 
