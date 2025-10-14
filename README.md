@@ -343,7 +343,7 @@ churn-prediction/
 └── requirements.txt
 ```
 
-Repo innehåller notebook för analys, modulär pipeline i src/, enhetstester i tests/, samt figurer för visualiseringar i README.
+Repo innehåller notebook för analys, modulär pipeline i `src/`, enhetstester i `tests/`, samt figurer för visualiseringar i README.
 
 ---
 
