@@ -317,7 +317,7 @@ Projektet demonstrerar hur en komplett pipeline kan byggas, där maskininlärnin
 ## Projektstruktur
 
 ```text
-customer-churn-analytics/
+churn-prediction/
 │
 ├── images/
 │
@@ -352,7 +352,7 @@ Repo innehåller notebook för analys, modulär pipeline i src/, enhetstester i 
 Kopiera repot och installera beroenden:
 
 ```bash
-git clone https://github.com/lencemajzovska/customer-churn-analytics.git
+git clone https://github.com/lencemajzovska/churn-prediction.git
 cd customer-churn-analytics
 pip install -r requirements.txt
 ```
