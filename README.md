@@ -117,7 +117,7 @@ Detta är ofta önskvärt i churn-analys, där det är viktigare att upptäcka r
 <br>
 
 <!-- <p align="center"> -->
-<img src="images/confusion_matrix.png" alt="Confusion Matrix" width="70%"/>
+<img src="images/confusion_matrix.png" alt="Confusion Matrix" width="90%"/>
 <!-- </p> -->
 
 Figuren visar hur modellens klassificering förändras när tröskelvärdet sänks från **0.50** till **0.34** (bästa F1-tröskel). <br>
