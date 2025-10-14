@@ -133,9 +133,9 @@ Vid tröskelvärde **0.50** missas 90 churnade kunder, medan den lägre tröskel
 
 <br>
 
-<!-- <p align="center"> -->
+<p align="center">
 <img src="images/roc_pr.png" alt="ROC och PR" width="70%"/>
-<!-- </p> -->
+</p>
 
 Figuren visar att modellen uppnår **AUC = 0.74** och **Average Precision (AP) = 0.64**, vilket betyder att den skiljer churnade kunder från aktiva på ett tillförlitligt sätt. <br>
 Modellen presterar stabilt även när fler churnade kunder identifieras, vilket är viktigt i riskanalys där det är viktigare att hitta så många riskkunder som möjligt än att undvika enstaka felklassificeringar.
