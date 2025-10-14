@@ -116,9 +116,9 @@ Detta är ofta önskvärt i churn-analys, där det är viktigare att upptäcka r
 
 <br>
 
-<!-- <p align="center"> -->
+<p align="center">
 <img src="images/confusion_matrix.png" alt="Confusion Matrix" width="90%"/>
-<!-- </p> -->
+</p>
 
 Figuren visar hur modellens klassificering förändras när tröskelvärdet sänks från **0.50** till **0.34** (bästa F1-tröskel). <br>
 Antalet korrekt identifierade churnade kunder ökar från **276** till **329** men samtidigt ökar antalet aktiva kunder  som felaktigt klassas som churn (falska positiva) från **187** till **279**. <br>
