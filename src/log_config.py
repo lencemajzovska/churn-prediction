@@ -1,59 +1,81 @@
+"""
+Central loggning:
+
+- färgade konsolloggar
+- loggfiler i logs/-mapp
+- rensning av dubblett-handlers
+- global standard för logging
+"""
+
+
+from __future__ import annotations
 import logging
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from datetime import datetime
 
 
-def setup_logging(base_dir: Path, level=logging.INFO, log_name: str = "pipeline.log"):
-    """
-    Sätter upp logging med både konsol- och filoutput.
-    Loggar alltid till en undermapp 'logs/' (standard: pipeline.log).
+class LogColors:
+    """ANSI-färger för terminal-loggar."""
+    RESET = "\033[0m"
+    GREY = "\033[90m"       # DEBUG
+    YELLOW = "\033[93m"     # WARNING
+    RED = "\033[91m"        # ERROR
+    MAGENTA = "\033[95m"    # CRITICAL
+    CYAN = "\033[96m"       # INFO
 
-    - Konsolen visar endast INFO och uppåt (för överskådlighet).
-    - Loggfilen tar emot alla nivåer (DEBUG och uppåt) och roteras
-      automatiskt om den blir för stor.
 
-    Parametrar
-    ----------
-    base_dir : Path
-        Basmapp där 'logs/' skapas.
-    level : int, default=logging.INFO
-        Lägsta nivå som visas i konsolen.
-    log_name : str, default="pipeline.log"
-        Namn på loggfilen.
-    """
-    # Skapa loggmapp om den inte redan finns
-    log_dir = base_dir / "logs"
-    log_dir.mkdir(exist_ok=True)
+class ColorFormatter(logging.Formatter):
+    """Formatter som färgar loggar baserat på nivå."""
+    COLORS = {
+        "DEBUG": LogColors.GREY,
+        "INFO": LogColors.CYAN,
+        "WARNING": LogColors.YELLOW,
+        "ERROR": LogColors.RED,
+        "CRITICAL": LogColors.MAGENTA,
+    }
 
-    # Filväg för loggfil
-    log_file = log_dir / log_name
+    def format(self, record: logging.LogRecord) -> str:
+        color = self.COLORS.get(record.levelname, LogColors.RESET)
+        message = record.getMessage()
+        return f"{color}{record.levelname:<7} {message}{LogColors.RESET}"
 
-    # Format på loggrader
-    formatter = logging.Formatter(
+
+def _project_root() -> Path:
+    """Returnerar projektets rotmapp."""
+    here = Path(__file__).resolve()
+    for parent in [here] + list(here.parents):
+        if (parent / "src").exists() or (parent / ".git").exists():
+            return parent
+    return here.parent
+
+
+def setup_logging(level: int = logging.INFO) -> Path:
+    """Initierar loggning och skapar loggfil."""
+    project_root = _project_root()
+    log_dir = project_root / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    log_file = log_dir / f"pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+
+    # Rensa gamla handlers för att undvika dubbletter
+    logging.getLogger().handlers.clear()
+
+    # Konsollogg med färg
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(ColorFormatter())
+    console_handler.setLevel(level)
+
+    # Loggfil
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setFormatter(logging.Formatter(
         "%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+        datefmt="%Y-%m-%d %H:%M:%S"
+    ))
 
-    # Konsol (bara INFO och uppåt)
-    console = logging.StreamHandler()
-    console.setLevel(level)
-    console.setFormatter(formatter)
+    # Aktivera logging globalt
+    root = logging.getLogger()
+    root.setLevel(level)
+    root.addHandler(console_handler)
+    root.addHandler(file_handler)
 
-    # Loggfil (DEBUG och uppåt, roterande fil max 2 MB, max 3 backuper)
-    file_handler = RotatingFileHandler(
-        log_file, maxBytes=2_000_000, backupCount=3, encoding="utf-8"
-    )
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
-
-    # Rensa ev. gamla handlers (för att undvika dubbletter)
-    root_logger = logging.getLogger()
-    root_logger.handlers.clear()
-
-    # Aktivera båda handlers: konsol + fil
-    root_logger.setLevel(logging.DEBUG)
-    root_logger.addHandler(console)
-    root_logger.addHandler(file_handler)
-
-    root_logger.info("Logging initierad → %s", log_file)
-    return root_logger
+    return log_file

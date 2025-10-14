@@ -1,126 +1,123 @@
+"""Enhetstester för model.py
+(träning, kalibrering, feature importance).
+"""
+
 import pytest
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import LogisticRegression
+import warnings
 
-from model import (
-    best_f1_threshold,
-    precision_at_k,
+from sklearn.datasets import make_classification
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+
+from src.model import (
+    split_data,
+    train_and_evaluate,
     evaluate_model,
-    get_models,
-    train_compare,
-    select_best,
-    cross_validate_auc,
     calibrate_model,
+    feature_importance,
 )
 
-
-@pytest.fixture
-def sample_data():
-    """Skapar ett enkelt dataset för tester."""
+@pytest.fixture(scope="module")
+def toy_data_small():
     X = pd.DataFrame({
-        "feat1": [0.1, 0.3, 0.5, 0.7],
-        "feat2": [1, 0, 1, 0],
+        "feat1": [0.1, 0.3, 0.5, 0.7, 0.9, 0.2, 0.4, 0.8],
+        "feat2": [1, 0, 1, 0, 1, 0, 1, 0],
     })
-    y = pd.Series([0, 1, 0, 1], name="churned")
-    ids = pd.Series([10, 20, 30, 40], name="customer_id")
+    y = pd.Series([0, 1, 0, 1, 1, 0, 0, 1], name="churned")
+    ids = pd.Series(range(100, 108), name="customer_id")
     return X, y, ids
 
 
-def test_best_f1_threshold():
-    """Kontrollerar att best_f1_threshold returnerar tröskel och F1 inom [0,1]."""
-    y_true = np.array([0, 0, 1, 1])
-    proba = np.array([0.1, 0.4, 0.6, 0.9])
-    thr, f1 = best_f1_threshold(y_true, proba)
-    assert 0 <= thr <= 1
-    assert 0 <= f1 <= 1
+@pytest.fixture(scope="module")
+def toy_data_big():
+    X_arr, y_arr = make_classification(
+        n_samples=200, n_features=6, n_informative=4, n_redundant=0,
+        n_clusters_per_class=1, weights=[0.7, 0.3], random_state=42
+    )
+    X = pd.DataFrame(X_arr, columns=[f"f{i}" for i in range(X_arr.shape[1])])
+    y = pd.Series(y_arr, name="churned")
+    ids = pd.Series(np.arange(1, len(y)+1), name="customer_id")
+    return X, y, ids
 
 
-def test_precision_at_k():
-    """Kontrollerar att precision_at_k returnerar värde mellan 0 och 1."""
-    y_true = [0, 1, 0, 1, 1]
-    proba = [0.2, 0.8, 0.1, 0.7, 0.9]
-    prec = precision_at_k(y_true, proba, k=0.4)
-    assert 0 <= prec <= 1
+def test_split_data(toy_data_small):
+    X, y, ids = toy_data_small
+    X_tr, X_te, y_tr, y_te, ids_tr, ids_te, feats = split_data(
+        X, y, ids, random_state=42, test_size=0.25
+    )
+    assert len(X_tr) + len(X_te) == len(X)
+    assert ids_te.is_unique
+    assert feats == list(X.columns)
+    assert list(X_tr.columns) == feats == list(X_te.columns)
 
 
-def test_evaluate_model(sample_data):
-    """Kontrollerar att evaluate_model returnerar alla förväntade mått och sannolikheter."""
-    X, y, _ = sample_data
-    model = LogisticRegression(max_iter=50, solver="liblinear")  # ✨ la till solver
-    res = evaluate_model("LogReg", model, X, y, X, y)
-    assert "auc" in res
-    assert "f1_best" in res
+def test_evaluate_model(toy_data_small):
+    X, y, _ = toy_data_small
+    mdl = LogisticRegression(max_iter=200, solver="liblinear")
+    res = evaluate_model("LogReg", mdl, X, y, X, y)
+    for k in ["name", "model", "proba", "auc", "f1_05", "best_thr", "f1_best", "precision_at_k"]:
+        assert k in res
     assert isinstance(res["proba"], np.ndarray)
     assert res["proba"].shape[0] == len(y)
-    assert 0 <= res["f1_best"] <= 1  # ✨ extra check
-    assert 0 <= res["auc"] <= 1 or np.isnan(res["auc"])  # ✨ extra check
+    assert 0.0 <= res["f1_05"] <= 1.0
+    assert 0.0 <= res["f1_best"] <= 1.0
+    assert (0.0 <= res["auc"] <= 1.0) or np.isnan(res["auc"])
 
 
-def test_get_models():
-    """Kontrollerar att get_models returnerar minst en LogReg-modell."""
-    models = get_models(random_state=42, scale_pos_weight=1.0)
-    assert isinstance(models, list)
-    assert any("LogReg" in name for name, _ in models)
+def test_model_selection(toy_data_big):
+    X, y, _ = toy_data_big
+    best_model, best_name, cv_df = train_and_evaluate(X, y, random_state=42)
+    assert best_model is not None
+    assert isinstance(best_name, str) and len(best_name) > 0
+    assert not cv_df.empty
+    assert {"model", "auc_mean", "auc_std", "folds"}.issubset(cv_df.columns)
+    assert cv_df.iloc[0]["model"] == best_name
 
 
-def test_train_compare(sample_data):
-    """Kontrollerar att train_compare returnerar resultat, tabell och proba_df."""
-    X, y, ids = sample_data
-    results, compare_df, proba_df, y_test, ids_test = train_compare(
-        X, y, ids, random_state=42, test_size=0.5
-    )
-    assert isinstance(results, list)
-    assert not compare_df.empty
-    assert not proba_df.empty
-    assert len(y_test) == len(ids_test)
-    # ✨ kolla att viktiga kolumner finns
-    assert set(["model", "auc", "f1_05", "best_thr", "f1_best"]).issubset(compare_df.columns)
-
-
-def test_select_best(sample_data):
-    """Kontrollerar att select_best väljer modell med högst AUC."""
-    X, y, ids = sample_data
-    results, _, _, _, _ = train_compare(X, y, ids, random_state=42, test_size=0.5)
-    best = select_best(results)
-    assert isinstance(best, dict)
-    assert "auc" in best
-    assert "name" in best
-
-
-def test_cross_validate_auc(sample_data):
-    """Kontrollerar att cross_validate_auc returnerar tabell med auc_mean och auc_std."""
-    X, y, _ = sample_data
-    models = get_models(random_state=42, scale_pos_weight=1.0)
-    df = cross_validate_auc(models, X, y, random_state=42, n_splits=2)
-    assert "auc_mean" in df.columns
-    assert "auc_std" in df.columns
-    assert not df.empty
-    assert df["auc_mean"].between(0, 1).all()  # ✨ extra check
-
-
-def test_calibrate_model_isotonic_or_fallback(sample_data):
-    """Kontrollerar att kalibrering fungerar (isotonic eller fallback)."""
-    X, y, _ = sample_data
-    base_model = LogisticRegression(max_iter=50, solver="liblinear")  # ✨ la till solver
-    calib = calibrate_model(base_model, X, y, method="isotonic")
-    # Oavsett metod ska modellen kunna ge predict_proba
+def test_calibration(toy_data_big):
+    X, y, _ = toy_data_big
+    base = LogisticRegression(max_iter=200, solver="liblinear")
+    calib, used = calibrate_model(base, X, y, method="isotonic")
+    assert used in {"isotonic", "sigmoid", "none"}
     assert hasattr(calib, "predict_proba")
-    preds = calib.predict_proba(X)
-    assert preds.shape[0] == len(X)
+    proba = calib.predict_proba(X)
+    assert proba.shape == (len(X), 2)
 
 
-def test_calibrate_model_tiny_dataset():
-    """Kontrollerar att ett extremt litet dataset inte kraschar (sigmoid eller okalibrerad)."""
-    X = pd.DataFrame({"feat1": [0.1, 0.9]})
-    y = pd.Series([0, 1], name="churned")
-    base_model = LogisticRegression(max_iter=50, solver="liblinear")  # ✨ la till solver
+def test_calibration_single_class():
+    X = pd.DataFrame({"f": [0.1, 0.2, 0.3, 0.4]})
+    y = pd.Series([0, 0, 0, 0], name="churned")
+    base = LogisticRegression(max_iter=200, solver="liblinear")
+    calib, used = calibrate_model(base, X, y, method="isotonic")
+    assert used == "none"
+    calib.fit(X, y)
+    assert hasattr(calib, "predict_proba")
 
-    calib = calibrate_model(base_model, X, y, method="isotonic")
-    # Ska alltid gå att använda för prediktion
-    if hasattr(calib, "predict_proba"):
-        preds = calib.predict_proba(X)
-        assert preds.shape[0] == len(X)
-    else:
-        preds = calib.predict(X)
-        assert preds.shape[0] == len(X)
+
+def _assert_importance_df(df, allow_std_optional: bool = True):
+    assert isinstance(df, pd.DataFrame)
+    assert "feature" in df.columns
+    assert "importance" in df.columns
+    if not allow_std_optional:
+        assert "importance_std" in df.columns
+    assert not df.empty
+    assert (df["importance"] >= 0).all()
+
+
+def test_feature_importance_permutation(toy_data_big):
+    X, y, _ = toy_data_big
+    lr = LogisticRegression(max_iter=200, solver="liblinear").fit(X, y)
+    imp = feature_importance(lr, X, y, list(X.columns), perm_repeats=3)
+    _assert_importance_df(imp, allow_std_optional=False)
+
+
+def test_feature_importance_shap(toy_data_big):
+    X, y, _ = toy_data_big
+    rf = RandomForestClassifier(n_estimators=50, random_state=42).fit(X, y)
+    warnings.filterwarnings("ignore", category=UserWarning)
+    warnings.filterwarnings("ignore", message=".*the 'data' parameter is deprecated.*")
+    imp = feature_importance(rf, X, y, list(X.columns), perm_repeats=2)
+    assert "feature" in imp.columns and "importance" in imp.columns
+    assert not imp.empty

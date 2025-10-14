@@ -1,138 +1,97 @@
-from __future__ import annotations
-import logging
-from typing import List, Tuple, Dict, Any
+"""
+Modellträning:
 
+- train/test-split
+- val av modell
+- cross-validation
+- utvärdering
+- kalibrering av sannolikheter
+- feature importance
+"""
+
+from __future__ import annotations
+
+import logging
 import numpy as np
 import pandas as pd
+
+import shap
+from typing import List, Tuple
+
 from sklearn.base import clone
-from sklearn.calibration import CalibratedClassifierCV
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (
-    f1_score,
-    roc_auc_score,
-    precision_recall_curve,
-)
 from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
+from sklearn.metrics import f1_score, roc_auc_score, precision_recall_curve
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.inspection import permutation_importance
+from sklearn.dummy import DummyClassifier
+
 from xgboost import XGBClassifier
 
 log = logging.getLogger(__name__)
 
 
-def best_f1_threshold(y_true, proba, grid=None) -> Tuple[float, float]:
+# === Train/Test-split ===
+def split_data(
+    X: pd.DataFrame,
+    y: pd.Series,
+    ids: pd.Series,
+    random_state: int = 42,
+    test_size: float = 0.25,
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series, pd.Series, List[str]]:
     """
-    Beräkna vilket tröskelvärde (0-1) som ger högst F1-score.
-    Returnerar både tröskeln och motsvarande F1.
+    Delar upp data i train/test med stratifiering (bevarar churn-fördelning).
     """
-    if grid is None:
-        grid = np.linspace(0.05, 0.95, 19)
-    f1s = [f1_score(y_true, (proba >= t).astype(int)) for t in grid]
-    i = int(np.argmax(f1s))
-    return float(grid[i]), float(f1s[i])
+    # Inputvalidering
+    if X.empty or y.empty:
+        raise ValueError("split_data() received empty X or y.")
+    if len(X) != len(y):
+        raise ValueError("X and y must have the same number of rows.")
+
+    # Stratifiering = samma churn-fördelning i train/test
+    X_tr, X_te, y_tr, y_te, ids_tr, ids_te = train_test_split(
+        X, y, ids,
+        test_size=test_size,
+        random_state=random_state,
+        stratify=y
+    )
+    assert ids_te.is_unique, "ids_test contains duplicates."
+
+    # Säkerställ samma featureordning i train/test
+    feature_names = X.columns.tolist()
+    X_tr = X_tr.loc[:, feature_names]
+    X_te = X_te.loc[:, feature_names]
+
+    log.debug(
+        "Train/Test split completed — Train: %s, Test: %s (churn rate: %.1f%%)",
+        len(y_tr), len(y_te), float(y.mean() * 100),
+    )
+    return X_tr, X_te, y_tr, y_te, ids_tr, ids_te, feature_names
 
 
-def precision_at_k(y_true, proba, k: float = 0.1) -> float:
-    """
-    Precision bland de k% kunder med högst predicerad risk.
-    Nyttigt för att mäta hur bra modellen identifierar toppkandidater
-    för churn (t.ex. för riktade kampanjer).
-    """
-    y_true = pd.Series(y_true).reset_index(drop=True)
-    proba = pd.Series(proba).reset_index(drop=True)
-
-    n = max(1, int(len(proba) * k))
-    if n == 1 and k < 1 / len(proba):
-        log.warning("precision_at_k: k=%.2f gav <1 sample, justerat till 1.", k)
-
-    idx = np.argsort(-proba.values)[:n]
-    return float((y_true.iloc[idx].sum()) / n)
-
-
-def evaluate_model(
-    name: str,
-    model,
-    X_tr: pd.DataFrame,
-    y_tr: pd.Series,
-    X_te: pd.DataFrame,
-    y_te: pd.Series,
-    k: float = 0.1,
-    thr: float = 0.50
-) -> Dict[str, Any]:
-    """
-    Tränar en modell och returnerar utvärderingsmått.
-
-    Returnerar en dict med:
-    - name: modellnamn
-    - model: det tränade modellobjektet
-    - proba: predikterade sannolikheter
-    - auc: ROC AUC
-    - f1_05: F1-score vid tröskel 0.5
-    - best_thr: tröskel som gav bäst F1-score
-    - f1_best: bästa F1-score
-    - precision_at_k: precision bland topp-k kunder
-    """
-    model.fit(X_tr, y_tr)
-
-    # Prediktera sannolikheter (fallback om metoden saknas)
-    if hasattr(model, "predict_proba"):
-        proba = model.predict_proba(X_te)[:, 1]
-    elif hasattr(model, "decision_function"):
-        scores = model.decision_function(X_te).reshape(-1, 1)
-        proba = MinMaxScaler().fit_transform(scores).ravel()
-    else:
-        proba = model.predict(X_te).astype(float)
-
-    # Hantera ev. NaN/inf
-    proba = np.nan_to_num(proba, nan=0.0, posinf=1.0, neginf=0.0)
-
-    # AUC
-    auc_val = roc_auc_score(y_te, proba) if len(np.unique(y_te)) > 1 else float("nan")
-
-    # F1-score vid tröskel 0.5
-    pred = (proba >= thr).astype(int)
-    f1_05 = f1_score(y_te, pred)
-
-    # Bästa threshold enligt F1
-    precisions, recalls, thresholds = precision_recall_curve(y_te, proba)
-    f1s = 2 * (precisions * recalls) / (precisions + recalls + 1e-9)
-    i = np.argmax(f1s)
-    best_thr = float(thresholds[i]) if i < len(thresholds) else thr
-    f1_best = float(f1s[i])
-
-    # Precision@K
-    prec_at_k = precision_at_k(y_te, proba, k=k)
-
-    return {
-        "name": name,
-        "model": model,
-        "proba": proba,
-        "auc": auc_val,
-        "f1_05": f1_05,
-        "best_thr": best_thr,
-        "f1_best": f1_best,
-        "precision_at_k": prec_at_k,
-    }
-
-
-def get_models(random_state: int, scale_pos_weight: float) -> List[Tuple[str, object]]:
-    """
-    Skapar en lista med modeller som ska jämföras.
-    """
-    log.info("Initierar kandidater: LogReg, RandomForest, XGBoost")
+# === Modelluppsättning ===
+def _get_models(random_state: int, scale_pos_weight: float) -> list[tuple[str, object]]:
+    """Definierar modeller som utvärderas."""
     return [
         (
             "LogReg (baseline)",
-            Pipeline([
-                ("scaler", StandardScaler()),
-                ("clf", LogisticRegression(
-                    max_iter=1000,
-                    class_weight="balanced",
-                    solver="liblinear",
-                    random_state=random_state
-                )),
-            ]),
+            Pipeline(
+                steps=[
+                    ("scaler", StandardScaler()),
+                    (
+                        "clf",
+                        LogisticRegression(
+                            max_iter=1000,
+                            class_weight="balanced",
+                            solver="liblinear",
+                            random_state=random_state,
+                        ),
+                    ),
+                ]
+            ),
         ),
         (
             "RandomForest",
@@ -165,167 +124,230 @@ def get_models(random_state: int, scale_pos_weight: float) -> List[Tuple[str, ob
     ]
 
 
-def train_compare(
-    X: pd.DataFrame,
-    y: pd.Series,
-    ids: pd.Series,
-    random_state: int = 42,
-    test_size: float = 0.25
-) -> Tuple[List[dict], pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
-    """
-    Tränar och jämför flera modeller på ett test-set.
+# === Hjälpfunktioner ===
+def _predict_proba_safely(model, X: pd.DataFrame) -> np.ndarray:
+    """Hämtar sannolikheter från modellen oavsett modelltyp."""
+    if hasattr(model, "predict_proba"):
+        proba = model.predict_proba(X)[:, 1]
+    elif hasattr(model, "decision_function"):
+        scores = model.decision_function(X)
+        if scores.ndim > 1:
+            scores = scores.ravel()
+        proba = MinMaxScaler().fit_transform(scores.reshape(-1, 1)).ravel()
+    else:
+        # Fallback: prediktion som sannolikhet
+        proba = model.predict(X).astype(float)
+    return np.nan_to_num(proba, nan=0.0, posinf=1.0, neginf=0.0)
 
-    Returnerar:
-      - results: lista med dicts från evaluate_model
-      - compare_df: tabell med AUC/F1 för modellerna
-      - proba_df: DataFrame med sannolikheter per kund
-      - y_test: faktiska churn-labels för test-set
-      - ids_test: kund-ID:n för test-set
-    """
-    log.info("Startar train/test-split (test_size=%s)", test_size)
 
-    # Dela upp data i train/test
-    X_tr, X_te, y_tr, y_te, ids_tr, ids_te = train_test_split(
-        X, y, ids,
-        test_size=test_size,
-        random_state=random_state,
-        stratify=y,
+# === Utvärdering ===
+def evaluate_model(
+    name: str,
+    model,
+    X_tr: pd.DataFrame,
+    y_tr: pd.Series,
+    X_te: pd.DataFrame,
+    y_te: pd.Series,
+    k: float = 0.10,
+    thr: float = 0.50,
+) -> dict:
+    """Tränar modell och utvärderar prestanda på testdata."""
+    model.fit(X_tr, y_tr)
+    proba = _predict_proba_safely(model, X_te)
+
+    # Standardmått för churnmodell
+    auc_val = roc_auc_score(y_te, proba) if len(np.unique(y_te)) > 1 else float("nan")
+    pred_05 = (proba >= thr).astype(int)
+    f1_05 = f1_score(y_te, pred_05)
+
+    # Bästa F1 baserat på threshold
+    precisions, recalls, thresholds = precision_recall_curve(y_te, proba)
+    f1s = 2 * (precisions * recalls) / (precisions + recalls + 1e-9)
+    i = int(np.argmax(f1s))
+    best_thr = float(thresholds[i]) if i < len(thresholds) else thr
+    f1_best = float(f1s[i])
+
+    # Precision@K (för top-prioritering)
+    n = max(1, int(len(proba) * k))
+    idx_top = np.argsort(-proba)[:n]
+    prec_at_k = float(np.take(y_te.to_numpy(), idx_top).sum() / n)
+
+    log.debug(
+        "%s — AUC: %.3f | F1@0.50: %.3f | Best F1: %.3f | Precision@K: %.3f",
+        name, auc_val, f1_05, f1_best, prec_at_k,
     )
 
-    # Beräkna class weight för obalanserad data (används i XGBoost)
-    pos = int(y_tr.sum())
-    neg = int(len(y_tr) - pos)
+    return {
+        "name": name,
+        "model": model,
+        "proba": proba,
+        "auc": auc_val,
+        "f1_05": f1_05,
+        "best_thr": best_thr,
+        "f1_best": f1_best,
+        "precision_at_k": prec_at_k,
+    }
+
+
+# === Cross-validation och modellval ===
+def train_and_evaluate(
+    X_train: pd.DataFrame,
+    y_train: pd.Series,
+    random_state: int = 42,
+) -> tuple[object, str, pd.DataFrame]:
+    """Väljer bästa modell med cross-validation (AUC)."""
+
+    # Hantera obalanserad data genom viktning
+    pos = int(y_train.sum())
+    neg = int(len(y_train) - pos)
     spw = (neg / max(pos, 1)) if pos else 1.0
-    log.info(
-        "Training data: %s kunder (%s pos, %s neg). scale_pos_weight=%.2f",
-        len(y_tr), pos, neg, spw
+    log.debug("Calculated scale_pos_weight = %.2f (neg=%s, pos=%s)", spw, neg, pos)
+
+    models = _get_models(random_state, spw)
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=random_state)
+
+    cv_results = []
+    for name, model in models:
+        aucs = cross_val_score(
+            model,
+            X_train,
+            y_train,
+            cv=cv,
+            scoring="roc_auc",
+            n_jobs=1
+        )
+        cv_results.append({
+            "model": name,
+            "auc_mean": aucs.mean(),
+            "auc_std": aucs.std(),
+            "folds": cv.get_n_splits()
+        })
+        log.debug("%s | CV AUC = %.3f ± %.3f", name, aucs.mean(), aucs.std())
+
+    cv_df = (
+        pd.DataFrame(cv_results)
+        .round(3)
+        .sort_values("auc_mean", ascending=False)
+        .reset_index(drop=True)
     )
+    best_name = str(cv_df.iloc[0]["model"])
+    best_model = next(m for n, m in models if n == best_name)
 
-    models = get_models(random_state, spw)
-
-    results: List[dict] = []
-    proba_frames = []
-
-    # Träna och utvärdera varje modell
-    for name, mdl in models:
-        res = evaluate_model(name, mdl, X_tr, y_tr, X_te, y_te, k=0.10, thr=0.50)
-        results.append(res)
-
-        # Spara sannolikheter per kund (för BI/analys)
-        proba_frames.append(pd.DataFrame({
-            "customer_id": ids_te,
-            f"proba_{name}": res["proba"],
-        }))
-
-    # Sammanfattande jämförelsetabell
-    compare_df = pd.DataFrame({
-        "model":     [r["name"] for r in results],
-        "auc":       [r["auc"] for r in results],
-        "f1_05":     [r["f1_05"] for r in results],
-        "best_thr":  [r["best_thr"] for r in results],
-        "f1_best":   [r["f1_best"] for r in results],
-    }).round(3).sort_values(["auc", "f1_best"], ascending=False)
-
-    # Kombinera sannolikheter per modell i en tabell
-    proba_df = pd.concat(proba_frames, axis=1)
-    proba_df = proba_df.loc[:, ~proba_df.columns.duplicated()]
-    log.info("Jämförelse klar. %s modeller utvärderade.", len(results))
-
-    return results, compare_df, proba_df, y_te, ids_te
+    log.debug("Best model selected by CV: %s", best_name)
+    return best_model, best_name, cv_df
 
 
-def select_best(results: List[dict]) -> dict:
+# === Kalibrering av modell ===
+def calibrate_model(
+    model,
+    X_train: pd.DataFrame,
+    y_train: pd.Series,
+    method: str = "isotonic",
+) -> tuple[object, str]:
     """
-    Väljer bästa modell baserat på högsta AUC.
+    Kalibrerar sannolikhetsutmatning från modellen.
+    Använder isotonic eller sigmoid som fallback.
     """
-    best = max(results, key=lambda r: r["auc"])
-    log.info("Vald bästa modell: %s (AUC=%.3f)", best["name"], best["auc"])
-    return best
+    if y_train.nunique() < 2:
+        # Hantera edge-case: bara en klass
+        dummy = DummyClassifier(strategy="constant", constant=y_train.iloc[0])
+        dummy.fit(X_train, y_train)
+        return dummy, "none"
+
+    try:
+        # Isotonic ger ofta bäst kalibrering
+        calib = CalibratedClassifierCV(estimator=clone(model), cv=5, method=method)
+        calib.fit(X_train, y_train)
+        return calib, method
+
+    except ValueError:
+        # Fallback om isotonic inte stöds
+        calib = CalibratedClassifierCV(estimator=clone(model), cv=5, method="sigmoid")
+        calib.fit(X_train, y_train)
+        return calib, "sigmoid"
 
 
-def cross_validate_auc(
-    models: List[Tuple[str, object]],
-    X: pd.DataFrame,
-    y: pd.Series,
-    random_state: int = 42,
-    n_splits: int = 5
+# === Feature importance ===
+def feature_importance(
+    model,
+    X_test: pd.DataFrame,
+    y_test: pd.Series,
+    feature_names: List[str],
+    perm_repeats: int = 5,
 ) -> pd.DataFrame:
     """
-    Kör cross-validation på flera modeller.
-    Returnerar en tabell med AUC (medelvärde och standardavvikelse).
+    Beräknar feature importance för den tränade modellen.
+    - SHAP används för trädmodeller (RandomForest, XGBoost)
+    - Permutation Importance används för övriga modeller eller som fallback
     """
-    cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
-    rows = []
-    for name, mdl in models:
-        log.info("CV för %s (%s folds)", name, n_splits)
-        aucs = cross_val_score(mdl, X, y, cv=cv, scoring="roc_auc", n_jobs=-1)
-        rows.append({
-            "model": name,
-            "auc_mean": float(aucs.mean()),
-            "auc_std": float(aucs.std()),
-            "n": len(aucs),
-        })
-    log.info("Cross-validation klar för %s modeller", len(models))
-    return pd.DataFrame(rows).round(3).sort_values("auc_mean", ascending=False)
 
+    # Hanterar modell inuti Pipeline/CalibratedClassifierCV
+    def _unwrap_estimator(m):
+        if isinstance(m, Pipeline):
+            return m.named_steps.get("clf", m)
+        if isinstance(m, CalibratedClassifierCV):
+            return getattr(m, "estimator", m)
+        return m
 
-def calibrate_model(base_model, X_train, y_train, method: str = "isotonic"):
-    """
-    Kalibrerar en modell för att förbättra sannolikhetsskattningarna.
+    est = _unwrap_estimator(model)
+    is_tree = isinstance(est, (RandomForestClassifier, XGBClassifier))
 
-    Försöker först träna kalibreringen med den metod som anges i argumentet
-    (t.ex. "isotonic" eller "sigmoid").
-    Om det misslyckas → fallback till sigmoid.
-    Om även det misslyckas → returnerar en okalibrerad modell.
-
-    Parametrar
-    ----------
-    base_model : sklearn-modell
-        Basmodell att kalibrera.
-    X_train : pd.DataFrame
-        Träningsdata.
-    y_train : pd.Series
-        Labels.
-    method : str, default="isotonic"
-        Första metod som försöks ("isotonic" eller "sigmoid").
-
-    Returns
-    -------
-    model : sklearn-modell
-        Kalibrerad modell (eller okalibrerad om båda metoderna misslyckas).
-    """
-    try:
-        log.info("Kalibrerar modell (%s)", method)
-
-        n_samples = len(y_train)
-        n_classes = y_train.nunique()
-
-        # Dynamiskt cv
-        max_cv = min(5, n_samples // n_classes)
-        if max_cv < 2:
-            raise ValueError("För få samples för CV-kalibrering")
-
-        calib = CalibratedClassifierCV(
-            estimator=clone(base_model),
-            cv=max_cv,
-            method=method
-        )
-        calib.fit(X_train, y_train)
-        return calib
-
-    except Exception as e:
-        log.warning("Isotonic misslyckades (%s); försöker sigmoid", e)
-
+    if is_tree:
         try:
-            fallback = CalibratedClassifierCV(
-                estimator=clone(base_model),
-                cv=2,
-                method="sigmoid"
+            # SHAP för tolkning av trädmodeller
+            explainer = shap.TreeExplainer(est)
+            shap_values = explainer.shap_values(X_test)
+
+            if isinstance(shap_values, list):
+                shap_values = shap_values[1] if len(shap_values) > 1 else shap_values[0]
+            elif isinstance(shap_values, np.ndarray) and shap_values.ndim == 3:
+                shap_values = (
+                    shap_values[:, :, 1]
+                    if shap_values.shape[2] == 2
+                    else shap_values.mean(axis=2)
+                )
+
+            importance = np.abs(shap_values).mean(axis=0)
+            importance_df = pd.DataFrame({"feature": feature_names, "importance": importance})
+            method = "SHAP"
+
+        except Exception:
+            # Fallback till Permutation Importance
+            perm = permutation_importance(
+                model,
+                X_test,
+                y_test,
+                n_repeats=perm_repeats,
+                random_state=42,
+                n_jobs=-1,
             )
-            fallback.fit(X_train, y_train)
-            return fallback
-        except Exception as e2:
-            log.error("Även sigmoid misslyckades (%s); returnerar okalibrerad modell", e2)
-            safe_model = clone(base_model)
-            safe_model.fit(X_train, y_train)
-            return safe_model
+            importance_df = pd.DataFrame(
+                {
+                    "feature": feature_names,
+                    "importance": perm.importances_mean,
+                    "importance_std": perm.importances_std,
+                }
+            )
+            method = "Permutation (fallback)"
+    else:
+        perm = permutation_importance(
+            model,
+            X_test,
+            y_test,
+            n_repeats=perm_repeats,
+            random_state=42,
+            n_jobs=-1,
+        )
+        importance_df = pd.DataFrame(
+            {
+                "feature": feature_names,
+                "importance": perm.importances_mean,
+                "importance_std": perm.importances_std,
+            }
+        )
+        method = "Permutation"
+
+    importance_df = importance_df.sort_values("importance", ascending=False).reset_index(drop=True)
+    log.debug("Feature importance calculated using %s (%s features).", method, len(importance_df))
+
+    return importance_df

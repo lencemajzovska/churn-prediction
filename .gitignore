@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *.pyo
+*.pyd
 *.so
 *.egg
 *.egg-info/
@@ -11,39 +12,76 @@ __pycache__/
 .venv/
 env/
 venv/
+ENV/
+pip-wheel-metadata/
 
-# Jupyter
-notebooks/*.ipynb
-!notebooks/churn_prediction.ipynb
+# Jupyter notebooks
 .ipynb_checkpoints/
 .notebooks/
+notebooks/*.ipynb
+!notebooks/churn_prediction.ipynb
 
-# Data & models
-data/
+# Data
+data_input/
+data_output/
+*.csv
+*.xlsx
 *.db
-models/
-images/
+*.sqlite
 
-# Logs
+# Models
+models/
+*.joblib
+*.pkl
+*.json
+*.h5
+*.onnx
+*.pt
+*.meta
+
+# Logs & reports
 *.log
 logs/
 
 # Docs
 docs/
+*.pdf
 *.docx
+build/
+_site/
 
 # Secrets & config
 .env
+*.env
+.env.*
+config.yaml
+config.yml
+
+# Power BI & artifacts
+*.pbix
+*.pbit
+
+# Tests
+.pytest_cache/
+.cache/
+.coverage
+htmlcov/
+nosetests.xml
+coverage.xml
 
 # OS files
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Editors & IDE
 .vscode/
+.idea/
 *.code-workspace
 
 # Temporary / backup files
 *.bak
 *.tmp
+*.swp
+*.swo
 ~$*

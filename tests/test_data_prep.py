@@ -1,132 +1,99 @@
+"""Enhetstester för data_prep.py
+(datainläsning och feature engineering)
+"""
+
 import pytest
 import pandas as pd
-import numpy as np
+from unittest.mock import patch
 
-from data_prep import (
-    make_paths, make_api_config, to_df,
-    clean_orders, compute_rfm, build_features, Paths, APIConfig
+from src.data_prep import (
+    load_orders,
+    clean_orders,
+    prepare_features,
+    Paths,
+    APIConfig,
+    ModelConfig,
 )
 
 
-@pytest.fixture
-def tmp_project(tmp_path):
-    """Skapar temporära kataloger för test."""
-    return make_paths(tmp_path)
+@pytest.fixture(scope="module")
+def paths():
+    return Paths.create()
 
 
-def test_make_paths(tmp_project):
-    """Testar att make_paths skapar kataloger och paths-objektet."""
-    paths = tmp_project
-    assert isinstance(paths, Paths), "make_paths returnerar fel typ"
-    # Kataloger ska finnas
-    assert paths.data_dir.exists(), "data_dir saknas"
-    assert paths.model_dir.exists(), "model_dir saknas"
-    assert paths.images_dir.exists(), "images_dir saknas"
-    # Viktiga attribut
-    assert paths.export_csv is not None, "export_csv saknas"
-    assert paths.sqlite_db is not None, "sqlite_db saknas"
-    assert paths.dummy_file is not None, "dummy_file saknas"
+@pytest.fixture(scope="module")
+def api_cfg():
+    return APIConfig(base_url="", api_key=None)
 
 
-def test_make_api_config(monkeypatch):
-    """Testar att APIConfig byggs korrekt från miljövariabler."""
-    monkeypatch.setenv("RUN_API", "true")
-    monkeypatch.setenv("ORDERS_API_BASE", "http://fake.api")
-    monkeypatch.setenv("ORDERS_API_KEY", "abc123")
+def test_csv_load(paths, api_cfg):
+    df, source = load_orders(paths, api_cfg)
 
-    cfg = make_api_config()
-    assert isinstance(cfg, APIConfig), "make_api_config returnerar fel typ"
-    assert cfg.run_api is True, "run_api borde vara True"
-    assert cfg.base_url == "http://fake.api"
-    assert cfg.api_key == "abc123"
+    assert isinstance(df, pd.DataFrame), "Result must be a DataFrame"
+    assert source == "csv", "CSV fallback must be used when no API is available"
+    assert not df.empty, "CSV file must not be empty"
 
-
-def test_make_api_config_defaults(monkeypatch):
-    """Testar att APIConfig får defaultvärden när miljövariabler saknas."""
-    monkeypatch.delenv("RUN_API", raising=False)
-    monkeypatch.delenv("ORDERS_API_BASE", raising=False)
-    monkeypatch.delenv("ORDERS_API_KEY", raising=False)
-
-    cfg = make_api_config()
-    assert isinstance(cfg, APIConfig)
-    assert cfg.run_api is False
-    assert cfg.base_url is None
-    assert cfg.api_key is None
+    cols = [c.lower().replace(" ", "").replace("_", "") for c in df.columns]
+    assert "customerid" in cols, "CustomerID column missing in raw CSV"
+    assert "invoicedate" in cols, "InvoiceDate column missing in raw CSV"
 
 
-def test_to_df_normalization():
-    """Testar att API-records normaliseras korrekt."""
-    records = [
-        {"customer.id": 1, "total": 100, "created_at": "2024-01-01T12:00:00Z"},
-        {"customer.id": 2, "total": 50, "created_at": "2024-01-02T12:00:00Z"},
-    ]
-    df = to_df(records, "created_at")
-    assert list(df.columns) == ["customer_id", "order_date", "amount"]
-    assert df["customer_id"].tolist() == [1, 2]
-    assert (df["amount"] >= 0).all(), "amount ska vara icke-negativ"
-    assert pd.api.types.is_datetime64_any_dtype(df["order_date"]), "order_date ska vara datetime"
-
-
-def test_to_df_empty():
-    """Testar att to_df hanterar tom input."""
-    df = to_df([], "created_at")
-    assert isinstance(df, pd.DataFrame)
-    assert df.empty, "DataFrame borde vara tom"
-    assert list(df.columns) == ["customer_id", "order_date", "amount"]
-
-
-def test_clean_orders():
-    """Testar att clean_orders rensar NaN och feltyper."""
-    df = pd.DataFrame({
-        "customer_id": [1, 2, None],
-        "order_date": ["2024-01-01", None, "2024-01-03"],
-        "amount": [100, None, 50],
-    })
+def test_clean_orders(paths, api_cfg):
+    df, _ = load_orders(paths, api_cfg)
     cleaned = clean_orders(df)
-    assert "amount" in cleaned.columns, "Kolumnen 'amount' saknas"
-    assert cleaned["amount"].isna().sum() == 0, "NaN borde vara rensade i amount"
-    assert cleaned["customer_id"].isna().sum() == 0, "NaN borde vara rensade i customer_id"
-    assert pd.api.types.is_datetime64_any_dtype(cleaned["order_date"]), "order_date borde vara datetime"
-    assert len(cleaned) < len(df), "clean_orders borde droppa rader"
-    assert pd.api.types.is_numeric_dtype(cleaned["amount"]), "amount borde vara numerisk"
+
+    assert all(c in cleaned.columns for c in ["customer_id", "invoice_date", "sales_amount"]), \
+        "clean_orders must produce standardised columns"
+    assert cleaned["sales_amount"].ge(0).all(), "Negative sales_amount values are not allowed"
+    assert cleaned["customer_id"].notna().all(), "customer_id must not contain NaN"
+    assert pd.api.types.is_datetime64_any_dtype(cleaned["invoice_date"]), "invoice_date must be datetime"
 
 
-def test_compute_rfm():
-    """Testar att compute_rfm skapar RFM-score och segment."""
-    df = pd.DataFrame({
-        "customer_id": [1, 1, 2],
-        "order_date": pd.to_datetime(["2024-01-01", "2024-01-10", "2024-01-05"]),
-        "amount": [100, 200, 50],
-    })
-    rfm = compute_rfm(df)
-    assert "R_score" in rfm.columns
-    assert "F_score" in rfm.columns
-    assert "M_score" in rfm.columns
-    assert "segment" in rfm.columns
-    assert rfm["customer_id"].nunique() == 2
-    assert not rfm["segment"].isna().any(), "segment får inte vara NaN"
-    for col in ["R_score", "F_score", "M_score"]:
-        assert rfm[col].between(1, 5).all(), f"{col} borde ligga mellan 1–5"
-    assert rfm["RFM_sum"].between(3, 15).all(), "RFM_sum borde ligga 3–15"
+def test_prepare_features(paths, api_cfg):
+    df, _ = load_orders(paths, api_cfg)
+    cleaned = clean_orders(df)
+
+    cfg = ModelConfig()
+
+    X, y, ids, _, ref_date, feat_names = prepare_features(cleaned, cfg)
+
+    assert isinstance(X, pd.DataFrame)
+    assert isinstance(y, pd.Series)
+    assert isinstance(ids, pd.Series)
+    assert isinstance(ref_date, pd.Timestamp)
+    assert not X.isna().any().any(), "Feature matrix must not contain NaN values"
+    assert y.isin([0, 1]).all(), "Target variable must be binary"
+    assert set(feat_names) == set(X.columns), "Feature names do not match feature matrix columns"
+    assert len(X) == len(y) == len(ids), "X, y and ids must have the same number of rows"
 
 
-def test_build_features():
-    """Testar att build_features skapar features och label korrekt för churn-modellen."""
-    df = pd.DataFrame({
-        "customer_id": [1, 1, 2, 2],
-        "order_date": pd.to_datetime(["2024-01-01", "2024-04-01", "2024-02-01", "2024-03-01"]),
-        "amount": [100, 200, 50, 75],
-    })
-    X, y, ids, feats_model, reference_date, feature_names = build_features(df, churn_days=90)
+def test_load_orders_api_mock(monkeypatch, paths):
+    from src.data_prep import _fetch_orders_page
 
-    assert isinstance(X, pd.DataFrame), "X borde vara DataFrame"
-    assert isinstance(y, pd.Series), "y borde vara Series"
-    assert isinstance(ids, pd.Series), "ids borde vara Series"
+    dummy_data = [{"customer.id": 1, "total": 100, "created_at": "2011-06-15T12:00:00Z"}]
 
-    assert "log_monetary_lifetime" in X.columns, "Feature saknas i X"
-    assert y.isin([0, 1]).all(), "y borde vara binär"
-    assert len(ids) == len(y), "ids och y borde ha samma längd"
-    assert not X.isna().any().any(), "X borde inte innehålla NaN"
-    assert not y.isna().any(), "y borde inte innehålla NaN"
-    assert set(feature_names) == set(X.columns), "feature_names borde matcha X.columns"
-    assert isinstance(reference_date, pd.Timestamp), "reference_date borde vara Timestamp"
+    class MockResponse:
+        def json(self):
+            return {"data": dummy_data}
+        def raise_for_status(self):
+            pass
+
+    with patch("src.data_prep.requests.get", return_value=MockResponse()):
+        api = APIConfig(base_url="http://fake.api", api_key="abc123")
+        rows = _fetch_orders_page(1, api)
+        assert isinstance(rows, list), "API fetch must return a list"
+        assert rows[0]["total"] == 100, "API response must contain order totals"
+        assert "customer.id" in rows[0], "API response must contain customer.id field"
+
+
+def test_feature_columns(paths, api_cfg):
+    df, _ = load_orders(paths, api_cfg)
+    cleaned = clean_orders(df)
+    from src.data_prep import ModelConfig
+
+    X, *_ = prepare_features(cleaned, ModelConfig())
+    expected = {"recency", "frequency_lifetime", "monetary_recent", "share_Q1", "is_weekly_buyer"}
+
+    assert expected.issubset(X.columns), \
+        f"Missing important feature columns: {expected - set(X.columns)}"
+    assert all(X[c].dtype != "O" for c in X.columns), "All features must be numeric"
