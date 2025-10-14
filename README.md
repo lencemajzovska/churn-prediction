@@ -120,8 +120,8 @@ Detta är ofta önskvärt i churn-analys, där det är viktigare att upptäcka r
 <img src="images/confusion_matrix.png" alt="Confusion Matrix" width="90%"/>
 </p>
 
-Figuren visar hur modellens klassificering förändras när tröskelvärdet sänks från **0.50** till **0.34** (bästa F1-tröskel). <br>
-Antalet korrekt identifierade churnade kunder ökar från **276** till **329** men samtidigt ökar antalet aktiva kunder  som felaktigt klassas som churn (falska positiva) från **187** till **279**. <br>
+Figuren visar hur modellens klassificering förändras när tröskelvärdet sänks från **0.50** till **0.34** (bästa F1-tröskel). 
+Antalet korrekt identifierade churnade kunder ökar från **276** till **329** men samtidigt ökar antalet aktiva kunder  som felaktigt klassas som churn (falska positiva) från **187** till **279**. 
 Vid tröskelvärde **0.50** missas 90 churnade kunder, medan den lägre tröskeln **0.34** ger en bättre balans mellan precision och recall genom att fånga fler riskkunder. <br>
 
 ---
@@ -137,14 +137,15 @@ Vid tröskelvärde **0.50** missas 90 churnade kunder, medan den lägre tröskel
 <img src="images/roc_pr.png" alt="ROC och PR" width="90%"/>
 </p>
 
-Figuren visar att modellen uppnår **AUC = 0.74** och **Average Precision (AP) = 0.64**, vilket betyder att den skiljer churnade kunder från aktiva på ett tillförlitligt sätt. <br>
+Figuren visar att modellen uppnår **AUC = 0.74** och **Average Precision (AP) = 0.64**, vilket betyder att den skiljer churnade kunder från aktiva på ett tillförlitligt sätt. 
 Modellen presterar stabilt även när fler churnade kunder identifieras, vilket är viktigt i riskanalys där det är viktigare att hitta så många riskkunder som möjligt än att undvika enstaka felklassificeringar.
 
 ---
 
 <br>
 
-**Feature importance** identifierar vilka variabler som har störst påverkan på modellens prediktioner. För *Logistic Regression* beräknas detta med *permutation importance*, vilket mäter hur mycket modellens prestanda försämras när en enskild variabel slumpas om.
+**Feature importance** identifierar vilka variabler som har störst påverkan på modellens prediktioner.  
+För *Logistic Regression* beräknas detta med *permutation importance*, vilket mäter hur mycket modellens prestanda försämras när en enskild variabel slumpas om.
 
 <br>
 
