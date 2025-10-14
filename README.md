@@ -353,7 +353,7 @@ Kopiera repot och installera beroenden:
 
 ```bash
 git clone https://github.com/lencemajzovska/churn-prediction.git
-cd customer-churn-analytics
+cd churn-prediction
 pip install -r requirements.txt
 ```
 
