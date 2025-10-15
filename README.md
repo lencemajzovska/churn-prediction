@@ -259,7 +259,7 @@ Churn-fördelning bland kunder
 Nedan visas Power BI rapport byggd på exporterad churn-data:
 
 
-<h3 align="center">Översikt</h3>
+<h4 align="center">Översikt</h4>
 <p align="center">
   <img src="images/powerbi_overview.png" alt="Power BI – Översikt" width="90%">
 </p>
