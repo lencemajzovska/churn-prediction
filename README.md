@@ -129,7 +129,7 @@ Vid tröskelvärde **0.50** missas 90 churnade kunder, medan den lägre tröskel
 <br>
 
 **ROC- och Precision–Recall kurvor** utvärderar modellens förmåga att skilja churnade från aktiva kunder.
-- *ROC kurvan* visar balansen mellan träffsäkerhet (True Positive Rate) och falsklarm (False Positive Rate), medan Precision–Recall-kurvan visar sambandet mellan precision och recall, vilket är särskilt relevant vid obalanserade klasser.
+*ROC kurvan* visar balansen mellan träffsäkerhet (True Positive Rate) och falsklarm (False Positive Rate), medan Precision–Recall-kurvan visar sambandet mellan precision och recall, vilket är särskilt relevant vid obalanserade klasser.
 
 <br>
 
