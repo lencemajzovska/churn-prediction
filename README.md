@@ -296,12 +296,11 @@ Följande förbättringar och tillägg kan implementeras när modellen används 
 
 ### Modellutveckling
 - Hyperparameteroptimering av *Random Forest* och *XGBoost* för ökad prediktiv precision
-- Kundspecifika SHAP-exempel för ökad transparens och förståelse i beslutsfattande
-
+- Kundspecifika SHAP-förklaringar för ökad insyn i individuella prediktioner
+  
 ### AI-komponenter & affärsnytta
 - LLM-komponent för att analysera kundkommentarer (till exempel sentiment eller ämnesklassning)
 - Automatiserade kampanjförslag baserat på riskband och kundsegment
-- Vidareutveckling av RFM-analys för att identifiera tydligare churn-trender och segmentbeteenden
 
 ### Infrastruktur
 - Molnbaserad drift för att hantera större datavolymer och möjliggöra realtidsanalys
