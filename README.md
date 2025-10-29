@@ -116,12 +116,12 @@ Detta är ofta önskvärt i churn-analys, där det är viktigare att upptäcka r
 
 <br>
 
-<!-- <p align="center"> -->
-<img src="images/confusion_matrix.png" alt="Confusion Matrix" width="50%"/>
-<!-- </p> -->
+<p align="center">
+<img src="images/confusion_matrix.png" alt="Confusion Matrix" width="90%"/>
+</p>
 
-Figuren visar hur modellens klassificering förändras när tröskelvärdet sänks från **0.50** till **0.34** (bästa F1-tröskel). <br>
-Antalet korrekt identifierade churnade kunder ökar från **276** till **329** men samtidigt ökar antalet aktiva kunder  som felaktigt klassas som churn (falska positiva) från **187** till **279**. <br>
+Figuren visar hur modellens klassificering förändras när tröskelvärdet sänks från **0.50** till **0.34** (bästa F1-tröskel). 
+Antalet korrekt identifierade churnade kunder ökar från **276** till **329** men samtidigt ökar antalet aktiva kunder  som felaktigt klassas som churn (falska positiva) från **187** till **279**. 
 Vid tröskelvärde **0.50** missas 90 churnade kunder, medan den lägre tröskeln **0.34** ger en bättre balans mellan precision och recall genom att fånga fler riskkunder. <br>
 
 ---
@@ -129,28 +129,29 @@ Vid tröskelvärde **0.50** missas 90 churnade kunder, medan den lägre tröskel
 <br>
 
 **ROC- och Precision–Recall kurvor** utvärderar modellens förmåga att skilja churnade från aktiva kunder.
-- *ROC kurvan* visar balansen mellan träffsäkerhet (True Positive Rate) och falsklarm (False Positive Rate), medan Precision–Recall-kurvan visar sambandet mellan precision och recall, vilket är särskilt relevant vid obalanserade klasser.
+*ROC kurvan* visar balansen mellan träffsäkerhet (True Positive Rate) och falsklarm (False Positive Rate), medan Precision–Recall-kurvan visar sambandet mellan precision och recall, vilket är särskilt relevant vid obalanserade klasser.
 
 <br>
 
-<!-- <p align="center"> -->
-<img src="images/roc_pr.png" alt="ROC och PR" width="50%"/>
-<!-- </p> -->
+<p align="center">
+<img src="images/roc_pr.png" alt="ROC och PR" width="90%"/>
+</p>
 
-Figuren visar att modellen uppnår **AUC = 0.74** och **Average Precision (AP) = 0.64**, vilket betyder att den skiljer churnade kunder från aktiva på ett tillförlitligt sätt. <br>
+Figuren visar att modellen uppnår **AUC = 0.74** och **Average Precision (AP) = 0.64**, vilket betyder att den skiljer churnade kunder från aktiva på ett tillförlitligt sätt. 
 Modellen presterar stabilt även när fler churnade kunder identifieras, vilket är viktigt i riskanalys där det är viktigare att hitta så många riskkunder som möjligt än att undvika enstaka felklassificeringar.
 
 ---
 
 <br>
 
-**Feature importance** identifierar vilka variabler som har störst påverkan på modellens prediktioner. För *Logistic Regression* beräknas detta med *permutation importance*, vilket mäter hur mycket modellens prestanda försämras när en enskild variabel slumpas om.
+**Feature importance** identifierar vilka variabler som har störst påverkan på modellens prediktioner.  
+För *Logistic Regression* beräknas detta med *permutation importance*, vilket mäter hur mycket modellens prestanda försämras när en enskild variabel slumpas om.
 
 <br>
 
-<!-- <p align="center"> -->
-<img src="images/feature_importance.png" alt="Permutation Importance" width="50%"/>
-<!-- </p> -->
+<p align="center">
+<img src="images/feature_importance.png" alt="Permutation Importance" width="90%"/>
+</p>
 
 Figuren visar att **recency** (antal dagar sedan senaste köp) är den mest betydelsefulla faktorn, följt av **days_since_first_purchase** och **frequency_lifetime**.
 Monetära mått som **log_monetary_lifetime** och indikatorn **is_weekly_buyer** har viss påverkan, medan säsongsvariabler som **share_Q1–Q4** och **avg_order_value** har mindre betydelse.
@@ -176,11 +177,11 @@ Efter kalibrering med **isotonic regression** ökar `precision @ 10 %` tydligt, 
 
 <br>
 
-<!-- <p align="center"> -->
-<img src="images/calibration_curves.png" alt="Kalibreringskurva" width="25%"/>
-<!-- </p> -->
+<p align="center">
+<img src="images/calibration_curves.png" alt="Kalibreringskurva" width="45%"/>
+</p>
 
-Grafen visar att den kalibrerade modellen generellt följer den perfekta diagonalen bättre än den okalibrerade. Vid lägre och medelhöga sannolikheter förbättras överensstämmelsen tydligt, vilket innebär att modellen skattar churnrisk mer realistiskt. Vid de högsta sannolikheterna (över ~0.8) syns dock en viss överkalibrering – modellen tenderar att överskatta risken något.
+Grafen visar att den kalibrerade modellen generellt följer den perfekta diagonalen bättre än den okalibrerade. Vid lägre och medelhöga sannolikheter förbättras överensstämmelsen tydligt, vilket innebär att modellen skattar churnrisk mer realistiskt. Vid de högsta sannolikheterna (över ~0.8) syns dock en viss överkalibrering, modellen tenderar att överskatta risken något.
 
 Trots det ger isotonic-kalibreringen en stabilare och mer tillförlitlig sannolikhetsfördelning som helhet, vilket gör den mer användbar för riskbedömning. Sammanfattningsvis förbättrar kalibreringen modellens användbarhet som beslutsstöd, där sannolikheter kan tolkas som faktiska risknivåer snarare än relativa poäng.
 
@@ -257,14 +258,21 @@ Churn-fördelning bland kunder
 
 Nedan visas Power BI rapport byggd på exporterad churn-data:
 
-<h3 style="margin-left: 58px;">Översikt</h3>
-<!-- <p align="center"> -->
-  <img src="images/powerbi_overview.png" alt="Power BI – Översikt" width="50%">
-<!-- </p> -->
 
+<<<<<<< HEAD
 <h3 style="margin-left: 58px;">RFM-analys och riskmönster</h3>
 <p align="center">
   <img src="images/powerbi_insights.png" alt="Power BI – RFM-insikter" width="50%">
+=======
+<h4 align="center">Översikt</h4>
+<p align="center">
+  <img src="images/powerbi_overview.png" alt="Power BI – Översikt" width="90%">
+</p>
+
+<h4 align="center">RFM-analys och riskmönster</h4>
+<p align="center">
+  <img src="images/powerbi_insights.png" alt="Power BI – RFM-insikter" width="90%">
+>>>>>>> 62893d8ef575b54e52e02660912fbff31f1b6879
 </p>
 
 ---
@@ -294,12 +302,11 @@ Följande förbättringar och tillägg kan implementeras när modellen används 
 
 ### Modellutveckling
 - Hyperparameteroptimering av *Random Forest* och *XGBoost* för ökad prediktiv precision
-- Kundspecifika SHAP-exempel för ökad transparens och förståelse i beslutsfattande
-
+- Kundspecifika SHAP-förklaringar för ökad insyn i individuella prediktioner
+  
 ### AI-komponenter & affärsnytta
 - LLM-komponent för att analysera kundkommentarer (till exempel sentiment eller ämnesklassning)
 - Automatiserade kampanjförslag baserat på riskband och kundsegment
-- Vidareutveckling av RFM-analys för att identifiera tydligare churn-trender och segmentbeteenden
 
 ### Infrastruktur
 - Molnbaserad drift för att hantera större datavolymer och möjliggöra realtidsanalys
@@ -315,30 +322,33 @@ Projektet demonstrerar hur en komplett pipeline kan byggas, där maskininlärnin
 ## Projektstruktur
 
 ```text
-customer-churn-analytics/
+churn-prediction/
+│
+├── images/
 │
 ├── notebooks/
 │   └── churn_prediction.ipynb
 │
 ├── src/
-│   ├── log_config.py
+│   ├── __init__.py
 │   ├── data_prep.py
-│   ├── model.py
 │   ├── export.py
+│   ├── log_config.py
+│   ├── model.py
 │   └── pipeline.py
 │
 ├── tests/
 │   ├── test_data_prep.py
-│   ├── test_model.py
-│   └── test_export.py
+│   ├── test_export.py
+│   └── test_model.py
 │
-├── images/
-│
-├── requirements.txt
-└── README.md
+├── .gitignore
+├── README.md
+├── pytest.ini
+└── requirements.txt
 ```
 
-Repo innehåller notebook för analys, modulär pipeline i src/, enhetstester i tests/, samt figurer för visualiseringar i README.
+Repo innehåller notebook för analys, modulär pipeline i `src/`, enhetstester i `tests/`, samt figurer för visualiseringar i README.
 
 ---
 
@@ -347,8 +357,8 @@ Repo innehåller notebook för analys, modulär pipeline i src/, enhetstester i 
 Kopiera repot och installera beroenden:
 
 ```bash
-git clone https://github.com/lencemajzovska/customer-churn-analytics.git
-cd customer-churn-analytics
+git clone https://github.com/lencemajzovska/churn-prediction.git
+cd churn-prediction
 pip install -r requirements.txt
 ```
 
@@ -391,9 +401,12 @@ Projektet är uppdelat i funktionella moduler:
 INFO    Pipeline started
 INFO    Data loaded (541,909 rows, 4,372 customers)
 INFO    Cleaned dataset ready (406,829 rows, 4,372 customers)
-INFO    Features generated (13 total)
+INFO    Features generated (3,376 customers, 13 features)
 INFO    Train/Test split completed
-INFO    Model selected: LogReg (baseline) (AUC=0.743)
+INFO    LogReg (baseline) | CV AUC = 0.750 ± 0.007
+INFO    RandomForest | CV AUC = 0.739 ± 0.009
+INFO    XGBoost | CV AUC = 0.728 ± 0.012
+INFO    Model selected: LogReg (baseline) 
 INFO    Calibration applied: isotonic
 INFO    Export completed
 INFO    Pipeline finished successfully
