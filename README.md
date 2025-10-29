@@ -263,9 +263,9 @@ Nedan visas Power BI rapport byggd på exporterad churn-data:
 <!-- </p> -->
 
 <h3 style="margin-left: 58px;">RFM-analys och riskmönster</h3>
-<!-- <p align="center"> -->
+<p align="center">
   <img src="images/powerbi_insights.png" alt="Power BI – RFM-insikter" width="50%">
-<!-- </p> -->
+</p>
 
 ---
 
