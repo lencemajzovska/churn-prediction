@@ -63,7 +63,7 @@ Tre modeller jämförs:
 - **Random Forest**
 - **XGBoost**
 
-Samtliga tränas med **standardparametrar** utan hyperparameteroptimering.
+Ingen hyperparameteroptimering används, i stället körs modellerna med förinställda parametrar och explicit hantering av klassobalans: `class_weight` för **Logistic Regression** och **Random Forest** samt `scale_pos_weight` för **XGBoost**.
 Detta gör att jämförelsen speglar modellernas grundläggande kapacitet snarare än effekten av parameterinställningar, vilket ger en transparent och konsekvent baseline att bygga vidare på.
 
 **Utvärdering**
@@ -85,7 +85,7 @@ Syftet är att identifiera vilka variabler som bidrar mest till prediktionerna o
 
 ## Resultat
 
-Tre modeller tränas och jämförs med **5-fold cross-validation** på träningsdatan för att hitta den mest lovande kandidaten.
+Tre modeller tränas och jämförs med **stratified 5-fold cross-validation** på träningsdatan för att hitta den mest lovande kandidaten.
 
 
 | Modell             | AUC (mean) | AUC (std) | folds |
@@ -121,7 +121,7 @@ Detta är ofta önskvärt i churn-analys, där det är viktigare att upptäcka r
 </p>
 
 Figuren visar hur modellens klassificering förändras när tröskelvärdet sänks från **0.50** till **0.34** (bästa F1-tröskel). 
-Antalet korrekt identifierade churnade kunder ökar från **276** till **329** men samtidigt ökar antalet aktiva kunder  som felaktigt klassas som churn (falska positiva) från **187** till **279**. 
+Antalet korrekt identifierade churnade kunder ökar från **276** till **329** men samtidigt ökar antalet aktiva kunder som felaktigt klassas som churn från **187** till **279**. 
 Vid tröskelvärde **0.50** missas 90 churnade kunder, medan den lägre tröskeln **0.34** ger en bättre balans mellan precision och recall genom att fånga fler riskkunder. <br>
 
 ---
@@ -164,7 +164,7 @@ Det innebär att kundens köphistorik och återköpsfrekvens är de tydligaste s
 
 **Kalibrering** används för att justera modellens sannolikhetsskattningar så att de bättre motsvarar den faktiska churnrisken.
 
-Modellen utvärderas först utan kalibrering (uncalibrated), och därefter med kalibrering via `CalibratedClassifierCV`. Huvudmetoden är **isotonic regression**, medan **sigmoid** fungerar som fallback om isotonic inte kan anpassas (till exempel vid för lite data).
+Modellen utvärderas först utan kalibrering och därefter med kalibrering via `CalibratedClassifierCV`. Huvudmetoden är **isotonic regression**, medan **sigmoid** fungerar som fallback om isotonic inte kan anpassas (till exempel vid för lite data).
 
 | Modell        | AUC   | F1@0.50 | Best F1 | Best Threshold | Precision@10% |
 |---------------|-------|---------|---------|----------------|---------------|
